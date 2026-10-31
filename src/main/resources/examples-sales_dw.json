@@ -1,0 +1,18 @@
+[
+  { "question": "Show the three cheapest products",
+    "sql": "SELECT name, price FROM products ORDER BY price ASC LIMIT 3" },
+  { "question": "How many products are in each category?",
+    "sql": "SELECT category, COUNT(*) AS product_count FROM products GROUP BY category" },
+  { "question": "Number of orders per region",
+    "sql": "SELECT r.name, COUNT(*) AS order_count FROM orders o JOIN regions r ON r.id = o.region_id GROUP BY r.name" },
+  { "question": "What is the highest order total?",
+    "sql": "SELECT MAX(total) AS max_total FROM orders" },
+  { "question": "Which customers placed the most orders?",
+    "sql": "SELECT c.name, COUNT(*) AS order_count FROM orders o JOIN customers c ON c.id = o.customer_id GROUP BY c.name ORDER BY order_count DESC LIMIT 5" },
+  { "question": "Total quantity of items per product",
+    "sql": "SELECT p.name, SUM(oi.quantity) AS total_quantity FROM order_items oi JOIN products p ON p.id = oi.product_id GROUP BY p.name" },
+  { "question": "Average order total per region",
+    "sql": "SELECT r.name, AVG(o.total) AS avg_total FROM orders o JOIN regions r ON r.id = o.region_id GROUP BY r.name" },
+  { "question": "Which product has the lowest price?",
+    "sql": "SELECT name, price FROM products ORDER BY price ASC LIMIT 1" }
+]

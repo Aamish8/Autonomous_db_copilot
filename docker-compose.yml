@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"          # 5433 so it does not clash with a Postgres already on your PC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/copilot
+      SPRING_DATASOURCE_USERNAME: copilot_app
+      SPRING_DATASOURCE_PASSWORD: copilot_app
+      SPRING_AI_OLLAMA_BASE_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      COPILOT_CRYPTO_PASSWORD: ${COPILOT_CRYPTO_PASSWORD:?set COPILOT_CRYPTO_PASSWORD in .env}
+      COPILOT_CRYPTO_SALT: ${COPILOT_CRYPTO_SALT:?set COPILOT_CRYPTO_SALT in .env}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?set DEMO_PASSWORD in .env}
+      COPILOT_DEMO_URL: jdbc:postgresql://postgres:5432/sales_dw
+      COPILOT_DEMO_USERNAME: copilot_ro
+      COPILOT_DEMO_PASSWORD: copilot_ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  # Optional: Ollama in Docker. Start with:  docker compose --profile ollama up -d --build
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama
+    volumes:
+      - ollama:/root/.ollama
+
+  ollama-init:
+    profiles: ["ollama"]
+    image: ollama/ollama
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["/bin/sh", "-c", "sleep 5 && ollama pull qwen2.5-coder:7b && ollama pull nomic-embed-text"]
+    restart: "no"
+
+volumes:
+  pgdata:
+  ollama:

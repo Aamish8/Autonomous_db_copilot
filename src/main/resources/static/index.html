@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DB Copilot</title>
+<style>
+  :root{
+    --bg:#000; --panel:#111; --line:#2e2e2e; --text:#fff; --muted:#a3a3a3;
+    --red:#d91e25; --red-text:#ff5a5f; --track:#262626;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.5;
+    display:flex}
+  .pane{flex:1;min-width:0;height:100%;display:flex;flex-direction:column}
+  header{padding:16px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px}
+  .logo{width:12px;height:12px;border-radius:3px;background:var(--red)}
+  main{flex:1;overflow-y:auto;padding:28px 28px 12px}
+  .col{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+  .empty{color:var(--muted);text-align:center;margin-top:12vh}
+  .empty h1{color:var(--text);font-size:22px;margin:0 0 8px}
+  .examples{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:18px}
+  .examples button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:99px;
+    padding:10px 16px;min-height:44px;font:inherit;cursor:pointer}
+  .examples button:hover{border-color:var(--red)}
+  .user{align-self:flex-end;max-width:80%;background:var(--red);color:#fff;
+    padding:11px 16px;border-radius:14px 14px 4px 14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;
+    display:flex;flex-direction:column;gap:16px}
+  .answer{font-size:16px;line-height:1.55}
+  .error{color:var(--red-text)}
+  .thinking{color:var(--muted)}
+  details summary{cursor:pointer;color:var(--red-text);min-height:32px;display:flex;align-items:center;list-style:none;width:fit-content}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"";width:7px;height:7px;margin:0 12px 2px 4px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+  details[open] summary::before{transform:rotate(45deg)}
+  pre{margin:8px 0 0;background:#000;border:1px solid var(--line);border-radius:8px;padding:14px;
+    overflow-x:auto;font-family:Consolas,"Courier New",monospace;font-size:13px;line-height:1.6;color:#e5e5e5}
+  .bars{display:flex;flex-direction:column;gap:10px}
+  .bar{display:grid;grid-template-columns:110px 1fr 90px;gap:12px;align-items:center;font-size:13px}
+  .bar .label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar .track{background:var(--track);border-radius:4px;height:16px}
+  .bar .fill{background:var(--red);height:16px;border-radius:4px}
+  .bar .val{text-align:right;font-variant-numeric:tabular-nums}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14px}
+  th{text-align:left;font-weight:500;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);font-size:13px}
+  td{padding:10px 12px;border-bottom:1px solid #1f1f1f;font-variant-numeric:tabular-nums}
+  td.num,th.num{text-align:right}
+  .meta{color:var(--muted);font-size:13px}
+  footer{padding:14px 28px 22px;border-top:1px solid var(--line)}
+  form{max-width:860px;margin:0 auto;display:flex;gap:10px}
+  input{flex:1;min-height:48px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    color:var(--text);padding:0 16px;font:inherit}
+  input::placeholder{color:var(--muted)}
+  .send{min-height:48px;padding:0 22px;background:var(--red);color:#fff;border:0;border-radius:10px;
+    font:inherit;font-weight:600;cursor:pointer}
+  .send:disabled{opacity:.5;cursor:default}
+  aside{width:250px;flex:none;border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:8px}
+  .brand{font-weight:600;font-size:17px;display:flex;align-items:center;gap:10px;padding:0 10px 14px}
+  .newchat{background:var(--red);color:#fff;border:0;border-radius:8px;min-height:44px;font:inherit;font-weight:600;cursor:pointer;margin-bottom:10px}
+  .recent-title{color:var(--muted);font-size:12px;padding:10px 10px 4px}
+  .recent{display:flex;flex-direction:column;gap:2px;overflow-y:auto;flex:1}
+  .recent button{background:none;border:0;color:#d4d4d4;text-align:left;padding:0 10px;min-height:44px;border-radius:8px;font:inherit;font-size:14px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .recent button:hover{background:#1f1f1f}
+  .recent-head{display:flex;justify-content:space-between;align-items:center;padding:10px 10px 4px}
+  .recent-head .recent-title{padding:0}
+  .clear{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;min-height:32px;padding:0 6px;border-radius:6px}
+  .clear:hover{color:var(--red-text)}
+  .recent .item{display:flex;align-items:center}
+  .recent .ask{flex:1;min-width:0}
+  .recent .del{flex:none;width:40px;padding:0;text-align:center;color:var(--muted);font-size:18px}
+  .recent .del:hover{color:var(--red-text)}
+  .conn{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-size:13px}
+  .dbbox{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+  select{min-height:44px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:0 10px;font:inherit}
+  .row{display:flex;gap:8px}
+  .ghost{flex:1;min-height:40px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
+  .ghost:hover{border-color:var(--red)}
+  .status{font-size:12px;color:var(--muted);min-height:18px}
+  dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:14px;padding:24px;width:min(440px,92vw)}
+  dialog::backdrop{background:rgba(0,0,0,.7)}
+  dialog h2{margin:0 0 6px;font-size:18px}
+  dialog form{display:block;max-width:none;margin:0}
+  dialog label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px}
+  dialog input{width:100%}
+  .hint{font-size:12px;color:var(--muted);margin-top:14px}
+  .formerr{color:var(--red-text);font-size:13px;margin-top:10px;min-height:18px}
+  .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .actions .ghost{flex:none;padding:0 18px;min-height:48px}
+  @media (max-width:800px){aside{display:none}}
+  :focus-visible{outline:2px solid #fff;outline-offset:2px}
+  @media (max-width:560px){
+    main,footer,header{padding-left:16px;padding-right:16px}
+    .bar{grid-template-columns:80px 1fr 70px}
+  }
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><span class="logo"></span>DB Copilot</div>
+  <button class="newchat" id="newchat" type="button">New chat</button>
+  <div class="dbbox">
+    <label class="recent-title" for="dbselect" style="padding:0 2px">Database</label>
+    <select id="dbselect" aria-label="Database"></select>
+    <div class="row"><button class="ghost" id="addbtn" type="button">+ Add</button><button class="ghost" id="reindex" type="button">Re-index</button></div>
+    <div class="status" id="dbstatus" role="status"></div>
+  </div>
+  <div class="recent-head"><span class="recent-title">Recent</span><button class="clear" id="clear" type="button">Clear all</button></div>
+  <div class="recent" id="recent"></div>
+  <div class="conn"><div class="meta">Connection</div><div id="connlabel">No database</div></div>
+</aside>
+<div class="pane">
+<main id="scroll">
+  <div class="col" id="chat">
+  </div>
+</main>
+
+<footer>
+  <form id="form">
+    <input id="q" type="text" autocomplete="off" aria-label="Ask a question" placeholder="Ask anything about your data">
+    <button class="send" id="send" type="submit">Send</button>
+  </form>
+</footer>
+</div>
+
+<dialog id="dlg">
+  <form id="dbform">
+    <h2>Add a database</h2>
+    <label for="f-name">Name</label><input id="f-name" required>
+    <label for="f-url">JDBC URL</label><input id="f-url" required placeholder="jdbc:postgresql://host:5432/dbname">
+    <label for="f-user">Username</label><input id="f-user" required autocomplete="off">
+    <label for="f-pass">Password</label><input id="f-pass" type="password" autocomplete="new-password">
+    <div class="hint">Use a read-only database user. The copilot only runs SELECT queries, but a read-only user is the safest setup.</div>
+    <div class="formerr" id="formerr" role="alert"></div>
+    <div class="actions"><button type="button" class="ghost" id="cancel">Cancel</button><button type="submit" class="send" id="saveidx">Save &amp; index</button></div>
+  </form>
+</dialog>
+
+<script>
+const chat = document.getElementById("chat");
+const scroller = document.getElementById("scroll");
+const form = document.getElementById("form");
+const input = document.getElementById("q");
+const sendBtn = document.getElementById("send");
+
+const EXAMPLES = [
+  "Which region made the most revenue?",
+  "How many customers per region?",
+  "Total quantity sold per category"
+];
+let saved = [];
+
+function ask(text) { input.value = text; form.requestSubmit(); }
+
+function showEmpty() {
+  chat.innerHTML = "";
+  const box = el("div", "empty");
+  box.id = "empty";
+  box.appendChild(el("h1", "", "Ask your database anything"));
+  box.appendChild(el("div", "", "Questions are turned into read-only SQL and answered from your data."));
+  const ex = el("div", "examples");
+  EXAMPLES.forEach(text => {
+    const btn = el("button", "", text);
+    btn.type = "button";
+    btn.onclick = () => ask(text);
+    ex.appendChild(btn);
+  });
+  box.appendChild(ex);
+  chat.appendChild(box);
+}
+
+async function loadHistory() {
+  if (currentId === null) { saved = []; renderRecent(); return; }
+  try {
+    const res = await fetch("/api/history?connectionId=" + currentId);
+    if (!res.ok) throw new Error("history failed");
+    saved = await res.json();
+  } catch (e) {
+    saved = [];
+  }
+  renderRecent();
+}
+
+function showSaved(item) {
+  chat.innerHTML = "";
+  chat.appendChild(el("div", "user", item.question));
+  const card = el("div", "card");
+  chat.appendChild(card);
+  let rows = [];
+  try { rows = JSON.parse(item.rowsJson || "[]"); } catch (e) {}
+  renderAnswer(card, { answer: item.answer, sql: item.sql, rows: rows });
+  scroller.scrollTop = 0;
+}
+
+function renderRecent() {
+  const list = document.getElementById("recent");
+  list.innerHTML = "";
+  saved.forEach(item => {
+    const row = el("div", "item");
+    const open = el("button", "ask", item.question);
+    open.type = "button";
+    open.title = item.question;
+    open.onclick = () => showSaved(item);
+    const del = el("button", "del", "\u00d7");
+    del.type = "button";
+    del.setAttribute("aria-label", "Remove: " + item.question);
+    del.onclick = async () => {
+      await fetch("/api/history/" + item.id, { method: "DELETE" });
+      loadHistory();
+    };
+    row.appendChild(open);
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+
+document.getElementById("clear").onclick = async () => {
+  if (!saved.length || !confirm("Delete all saved history?")) return;
+  await fetch("/api/history?connectionId=" + currentId, { method: "DELETE" });
+  loadHistory();
+};
+document.getElementById("newchat").onclick = () => { showEmpty(); input.focus(); };
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function fmt(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "number") return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return String(v);
+}
+
+function toBottom() { scroller.scrollTop = scroller.scrollHeight; }
+
+function buildChart(rows) {
+  if (rows.length < 2 || rows.length > 12) return null;
+  const keys = Object.keys(rows[0]);
+  const labelKey = keys.find(k => typeof rows[0][k] === "string");
+  const valueKey = keys.find(k => typeof rows[0][k] === "number");
+  if (!labelKey || !valueKey) return null;
+  const max = Math.max(...rows.map(r => Number(r[valueKey]) || 0));
+  if (max <= 0) return null;
+  const wrap = el("div", "bars");
+  rows.forEach(r => {
+    const row = el("div", "bar");
+    row.appendChild(el("span", "label", fmt(r[labelKey])));
+    const track = el("div", "track");
+    const fill = el("div", "fill");
+    fill.style.width = Math.max(2, (Number(r[valueKey]) / max) * 100) + "%";
+    track.appendChild(fill);
+    row.appendChild(track);
+    row.appendChild(el("span", "val", fmt(r[valueKey])));
+    wrap.appendChild(row);
+  });
+  return wrap;
+}
+
+function buildTable(rows) {
+  const keys = Object.keys(rows[0]);
+  const wrap = el("div", "tablewrap");
+  const table = el("table");
+  const head = el("tr");
+  keys.forEach(k => head.appendChild(el("th", typeof rows[0][k] === "number" ? "num" : "", k)));
+  table.appendChild(head);
+  rows.forEach(r => {
+    const tr = el("tr");
+    keys.forEach(k => tr.appendChild(el("td", typeof r[k] === "number" ? "num" : "", fmt(r[k]))));
+    table.appendChild(tr);
+  });
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function renderAnswer(card, data) {
+  card.innerHTML = "";
+  card.appendChild(el("div", "answer", data.answer || ""));
+
+  if (data.sql) {
+    const d = el("details");
+    const sum = el("summary", "", "Show SQL");
+    d.addEventListener("toggle", () => { sum.textContent = d.open ? "Hide SQL" : "Show SQL"; });
+    d.appendChild(sum);
+    d.appendChild(el("pre", "", data.sql));
+    card.appendChild(d);
+  }
+  const rows = data.rows || [];
+  if (rows.length) {
+    const chart = buildChart(rows);
+    if (chart) card.appendChild(chart);
+    card.appendChild(buildTable(rows));
+    card.appendChild(el("div", "meta", rows.length + (rows.length === 1 ? " row" : " rows")));
+  }
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = input.value.trim();
+  if (!question) return;
+  if (currentId === null) { setStatus("Add a database first."); return; }
+
+  const empty = document.getElementById("empty");
+  if (empty) empty.remove();
+
+  chat.appendChild(el("div", "user", question));
+  const card = el("div", "card");
+  card.appendChild(el("div", "thinking", "Working on it…"));
+  chat.appendChild(card);
+  toBottom();
+
+  input.value = "";
+  sendBtn.disabled = true;
+
+  try {
+    const res = await fetch("/api/ask/" + currentId, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    });
+    if (!res.ok) throw new Error("Server returned " + res.status);
+    renderAnswer(card, await res.json());
+    loadHistory();
+  } catch (err) {
+    card.innerHTML = "";
+    card.appendChild(el("div", "error", "Could not answer that. Try rephrasing the question. (" + err.message + ")"));
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+    toBottom();
+  }
+});
+let connections = [];
+let currentId = null;
+const dbselect = document.getElementById("dbselect");
+const dbstatus = document.getElementById("dbstatus");
+const dlg = document.getElementById("dlg");
+
+function setStatus(t) { dbstatus.textContent = t; }
+
+function syncConnection() {
+  const found = connections.find(c => c.connectionId === currentId);
+  document.getElementById("connlabel").textContent = found ? "\u25cf " + found.name : "No database";
+  input.disabled = currentId === null;
+  sendBtn.disabled = currentId === null;
+}
+
+async function loadConnections(selectId) {
+  try {
+    const res = await fetch("/api/connections");
+    if (!res.ok) throw new Error("connections failed");
+    connections = await res.json();
+  } catch (e) {
+    connections = [];
+  }
+  dbselect.innerHTML = "";
+  connections.forEach(c => {
+    const o = el("option", "", c.name);
+    o.value = c.connectionId;
+    dbselect.appendChild(o);
+  });
+  const wanted = selectId !== undefined ? selectId : currentId;
+  const found = connections.find(c => c.connectionId === wanted) || connections[0];
+  currentId = found ? found.connectionId : null;
+  if (found) dbselect.value = found.connectionId;
+  syncConnection();
+  setStatus(currentId === null ? "Add a database to start." : "");
+  loadHistory();
+}
+
+dbselect.onchange = () => {
+  currentId = Number(dbselect.value);
+  syncConnection();
+  setStatus("");
+  showEmpty();
+  loadHistory();
+};
+
+async function indexDb(id) {
+  const res = await fetch("/api/connections/" + id + "/index", { method: "POST" });
+  if (!res.ok) throw new Error("Indexing failed (" + res.status + "). Check the URL and credentials.");
+  return res.text();
+}
+
+document.getElementById("reindex").onclick = async () => {
+  if (currentId === null) return;
+  setStatus("Indexing\u2026");
+  try {
+    setStatus("Indexed " + (await indexDb(currentId)) + " tables.");
+  } catch (e) {
+    setStatus(e.message);
+  }
+};
+
+document.getElementById("addbtn").onclick = () => {
+  document.getElementById("dbform").reset();
+  document.getElementById("formerr").textContent = "";
+  dlg.showModal();
+};
+document.getElementById("cancel").onclick = () => dlg.close();
+
+document.getElementById("dbform").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = document.getElementById("formerr");
+  const btn = document.getElementById("saveidx");
+  const v = id => document.getElementById(id).value.trim();
+  btn.disabled = true;
+  err.textContent = "Saving and indexing\u2026";
+  try {
+    const res = await fetch("/api/connections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: v("f-name"), url: v("f-url"), username: v("f-user"),
+                             password: document.getElementById("f-pass").value })
+    });
+    if (!res.ok) throw new Error("Could not save the connection (" + res.status + ").");
+    const saved = await res.json();
+    let count;
+    try {
+      count = await indexDb(saved.connectionId);
+    } finally {
+      await loadConnections(saved.connectionId);
+    }
+    dlg.close();
+    showEmpty();
+    setStatus("Indexed " + count + " tables.");
+  } catch (ex) {
+    err.textContent = ex.message + " The connection was saved. Fix it and use Re-index.";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+showEmpty();
+loadConnections();
+</script>
+</body>
+</html>
