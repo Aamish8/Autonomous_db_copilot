@@ -1,0 +1,1 @@
+DB Copilot - ask a database questions in plain English (Spring Boot, Spring AI, Ollama, pgvector).
